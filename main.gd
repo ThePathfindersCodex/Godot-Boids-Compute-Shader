@@ -11,7 +11,7 @@ var slider_bindings = {
 	"%SliderMaxSpeed": "max_speed",
 	"%SliderDrag": "drag",
 	"%SliderMovementRandomness": "movement_randomness",
-	"%SliderMovementAccuracy": "movement_accuracy",
+	"%SliderMovementScaling": "movement_scaling",
 	"%SliderDrawRadius": "draw_radius"
 }
 
@@ -39,7 +39,7 @@ func _process(_delta):
 	%LabelMaxSpeedValue.text = str(snapped(%ComputeBoids.max_speed,.1))
 	%LabelDragValue.text = str(snapped(%ComputeBoids.drag,.01))
 	%LabelSliderMovementRandomnessValue.text = str(snapped(%ComputeBoids.movement_randomness,.1))
-	%LabelSliderMovementAccuracyValue.text = str(snapped(%ComputeBoids.movement_accuracy,.1))
+	%LabelSliderMovementScalingValue.text = str(snapped(%ComputeBoids.movement_scaling,.1))
 	%LabelDrawRadiusValue.text = str(snapped(%ComputeBoids.draw_radius,1))
 	
 	%LabelCamCenterValue.text = "("+str(snapped(%ComputeBoids.camera_center.x,.1))+ ", " + str(snapped(%ComputeBoids.camera_center.y,.1)) + ")"

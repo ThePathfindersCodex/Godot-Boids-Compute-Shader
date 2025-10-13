@@ -21,7 +21,7 @@ var min_speed : float = 0.5
 var max_speed : float = 6.0
 var drag : float = 0.98
 var movement_randomness : float = 0.2
-var movement_accuracy : float = 1.0
+var movement_scaling : float = 1.0
 
 # DRAW
 var draw_radius : float = 20.0
@@ -142,7 +142,7 @@ func compute_stage(run_mode:int):
 		max_speed,
 		drag,
 		movement_randomness,
-		movement_accuracy,
+		movement_scaling,
 		float(image_size),
 		float(zone_size_mult),
 		draw_radius,

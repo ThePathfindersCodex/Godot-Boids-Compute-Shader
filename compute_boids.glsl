@@ -28,7 +28,7 @@ layout(push_constant, std430) uniform Params {
     float max_speed;
     float drag;
     float movement_randomness;
-    float movement_accuracy;
+    float movement_scaling;
     float image_size;
 	float zone_size_mult;
     float draw_radius;
@@ -126,8 +126,8 @@ void run_sim() {
     // Add randomness
     accel += random_dir(id + uint(gl_WorkGroupID.x), params.movement_randomness);
 
-    // Scale by steering accuracy
-    accel *= params.movement_accuracy;
+    // Scale by global movement scaling
+    accel *= params.movement_scaling;
 
     // Limit steering
     accel = limit(accel, params.steering_force);
