@@ -33,7 +33,9 @@ const MIN_ZOOM := 0.1
 const MAX_ZOOM := 5.0
 
 # RENDERER SETUP
-var rd := RenderingServer.create_local_rendering_device()
+#var rd := RenderingServer.create_local_rendering_device()
+var rdmain := RenderingServer.get_rendering_device()
+var textureRD: Texture2DRD
 var shader : RID
 var pipeline : RID
 var uniform_set : RID
@@ -52,9 +54,12 @@ func _ready():
 	fmt.usage_bits = RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT \
 					| RenderingDevice.TEXTURE_USAGE_STORAGE_BIT \
 					| RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT \
-					| RenderingDevice.TEXTURE_USAGE_CPU_READ_BIT
+					| RenderingDevice.TEXTURE_USAGE_CPU_READ_BIT \
+					| RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT
 	view = RDTextureView.new()
-	restart_simulation()
+	textureRD = Texture2DRD.new()
+	
+	RenderingServer.call_on_render_thread(restart_simulation)
 
 func restart_simulation():
 	boids_count = start_boids_count
@@ -82,17 +87,18 @@ func rebuild_buffers(data: Dictionary):
 	var vel_bytes : PackedByteArray = vel_pf.to_byte_array()
 
 	# IN BUFFERS
-	buffers.append(rd.storage_buffer_create(pos_bytes.size(), pos_bytes))   # 0 in_pos_buffer
-	buffers.append(rd.storage_buffer_create(vel_bytes.size(), vel_bytes))   # 1 in_vel_buffer
+	buffers.append(rdmain.storage_buffer_create(pos_bytes.size(), pos_bytes))   # 0 in_pos_buffer
+	buffers.append(rdmain.storage_buffer_create(vel_bytes.size(), vel_bytes))   # 1 in_vel_buffer
 
 	# OUT BUFFERS (copy of input)
 	for b in [pos_bytes, vel_bytes]:
-		buffers.append(rd.storage_buffer_create(b.size(), b))  # 2 out_pos_buffer, 3 out_vel_buffer
+		buffers.append(rdmain.storage_buffer_create(b.size(), b))  # 2 out_pos_buffer, 3 out_vel_buffer
 
 	# Output texture
 	var output_img := Image.create(image_size, image_size, false, Image.FORMAT_RGBAF)
-	texture = ImageTexture.create_from_image(output_img)
-	output_tex = rd.texture_create(fmt, view, [output_img.get_data()])
+	#texture = ImageTexture.create_from_image(output_img)
+	output_tex = rdmain.texture_create(fmt, view, [output_img.get_data()])
+	textureRD.texture_rd_rid = output_tex
 
 	# UNIFORMS (storage buffers)
 	for i in range(4):
@@ -111,9 +117,9 @@ func rebuild_buffers(data: Dictionary):
 
 	# SHADER + PIPELINE
 	var shader_file := load("res://compute_boids.glsl") as RDShaderFile
-	shader = rd.shader_create_from_spirv(shader_file.get_spirv())
-	pipeline = rd.compute_pipeline_create(shader)
-	uniform_set = rd.uniform_set_create(uniforms, shader, 0)
+	shader = rdmain.shader_create_from_spirv(shader_file.get_spirv())
+	pipeline = rdmain.compute_pipeline_create(shader)
+	uniform_set = rdmain.uniform_set_create(uniforms, shader, 0)
 
 func compute_stage(run_mode:int):
 	# default to 1D dispatch for boids
@@ -125,9 +131,9 @@ func compute_stage(run_mode:int):
 		global_size_x = image_size
 		global_size_y = image_size
 
-	var compute_list := rd.compute_list_begin()
-	rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
-	rd.compute_list_bind_uniform_set(compute_list, uniform_set, 0)
+	var compute_list := rdmain.compute_list_begin()
+	rdmain.compute_list_bind_compute_pipeline(compute_list, pipeline)
+	rdmain.compute_list_bind_uniform_set(compute_list, uniform_set, 0)
 
 	# PUSH CONSTANT PARAMETERS
 	var params := PackedFloat32Array([
@@ -155,27 +161,28 @@ func compute_stage(run_mode:int):
 	var params_bytes := PackedByteArray()
 	params_bytes.append_array(params.to_byte_array())
 
-	rd.compute_list_set_push_constant(compute_list, params_bytes, params_bytes.size())
-	rd.compute_list_dispatch(compute_list, global_size_x, global_size_y, 1)
-	rd.compute_list_end()
-	rd.submit()
-	rd.sync()
+	rdmain.compute_list_set_push_constant(compute_list, params_bytes, params_bytes.size())
+	rdmain.compute_list_dispatch(compute_list, global_size_x, global_size_y, 1)
+	rdmain.compute_list_end()
+	#rdmain.submit()
+	#rdmain.sync()
 
 func _process(_delta):
+	RenderingServer.call_on_render_thread(run_simulation)
+
+func run_simulation():
 	# RUN COMPUTE STAGES: 0 = simulate, 1 = clear, 2 = draw
 	for run_mode in [0, 1, 2]:
 		compute_stage(run_mode)
 
 	# Copy GPU out buffers back to in buffers
-	var output_bytes_pos = rd.buffer_get_data(buffers[2])  # out_pos_buffer
-	var output_bytes_vel = rd.buffer_get_data(buffers[3])  # out_vel_buffer
-	rd.buffer_update(buffers[0], 0, output_bytes_pos.size(), output_bytes_pos)  # in_pos_buffer <- out_pos
-	rd.buffer_update(buffers[1], 0, output_bytes_vel.size(), output_bytes_vel)  # in_vel_buffer <- out_vel
+	var output_bytes_pos = rdmain.buffer_get_data(buffers[2])  # out_pos_buffer
+	var output_bytes_vel = rdmain.buffer_get_data(buffers[3])  # out_vel_buffer
+	rdmain.buffer_update(buffers[0], 0, output_bytes_pos.size(), output_bytes_pos)  # in_pos_buffer <- out_pos
+	rdmain.buffer_update(buffers[1], 0, output_bytes_vel.size(), output_bytes_vel)  # in_vel_buffer <- out_vel
 
 	# UPDATE TEXTURE ON SCREEN
-	var byte_data := rd.texture_get_data(output_tex, 0)
-	var image := Image.create_from_data(image_size, image_size, false, Image.FORMAT_RGBAF, byte_data)
-	texture.update(image)
+	texture = textureRD
 
 # HANDLE MOUSE INPUTS
 var dragging := false
