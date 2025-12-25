@@ -2,7 +2,12 @@ extends TextureRect
 
 # CONFIG
 var shader_local_size := 512
-@onready var image_size : int = %ComputeBoids.size.x
+var empty_img : Image
+@onready var image_size : int = %ComputeBoids.size.x:
+	set(v):
+		empty_img = Image.create(v, v, false, Image.FORMAT_RGBAF)
+		empty_img.fill(Color(0.1, 0.1, 0.1, 1.0))
+		image_size = v
 var zone_size_mult : int = 8
 
 # STARTUP
@@ -48,6 +53,8 @@ var output_tex_uniform : RDUniform
 
 func _ready():
 	randomize()
+	image_size = %ComputeBoids.size.x
+	
 	fmt.width = image_size
 	fmt.height = image_size
 	fmt.format = RenderingDevice.DATA_FORMAT_R32G32B32A32_SFLOAT
@@ -126,11 +133,6 @@ func compute_stage(run_mode:int):
 	var global_size_x : int = int(float(boids_count) / shader_local_size) + 1
 	var global_size_y : int = 1
 
-	# use 2D dispatch for CLEAR stage
-	if (run_mode == 1):
-		global_size_x = image_size
-		global_size_y = image_size
-
 	var compute_list := rdmain.compute_list_begin()
 	rdmain.compute_list_bind_compute_pipeline(compute_list, pipeline)
 	rdmain.compute_list_bind_uniform_set(compute_list, uniform_set, 0)
@@ -172,8 +174,15 @@ func _process(_delta):
 
 func run_simulation():
 	# RUN COMPUTE STAGES: 0 = simulate, 1 = clear, 2 = draw
-	for run_mode in [0, 1, 2]:
-		compute_stage(run_mode)
+	#for run_mode in [0, 1, 2]:
+		#compute_stage(run_mode)
+		
+	compute_stage(0)
+	
+	#compute_stage(1)
+	rdmain.texture_update(output_tex, 0, empty_img.get_data())
+	
+	compute_stage(2)
 
 	# --- Swap results back into input buffers ---
 	swap_buffer_bindings()
