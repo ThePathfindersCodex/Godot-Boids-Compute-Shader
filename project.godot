@@ -23,6 +23,7 @@ StartupManager="*res://startup_manager.gd"
 
 window/size/viewport_width=1350
 window/size/viewport_height=950
+window/vsync/vsync_mode=0
 
 [input]
 
