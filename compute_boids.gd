@@ -68,6 +68,19 @@ func _ready():
 	
 	RenderingServer.call_on_render_thread(restart_simulation)
 
+func _exit_tree():
+	if textureRD:
+		textureRD.texture_rd_rid = RID()
+	RenderingServer.call_on_render_thread(_free_compute_resources)
+
+func _free_compute_resources():
+	for i in range(buffers.size()):
+		if buffers[i]:
+			rdmain.free_rid(buffers[i])
+	if shader:
+		rdmain.free_rid(shader)
+	# TODO: consider other RIDs
+
 func restart_simulation():
 	boids_count = start_boids_count
 
@@ -109,7 +122,7 @@ func rebuild_buffers(data: Dictionary):
 	texture = textureRD # attach the output texture to the display node 
 
 	# UNIFORMS (storage buffers)
-	for i in range(4):
+	for i in range(buffers.size()):
 		var u := RDUniform.new()
 		u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
 		u.binding = i
@@ -219,6 +232,7 @@ func swap_buffer_bindings():
 	uniforms[3].add_id(buffers[vel_out_index])
 	
 	# rebuild uniform set
+	rdmain.free_rid(uniform_set)
 	uniform_set = rdmain.uniform_set_create(uniforms, shader, 0)
 
 # HANDLE MOUSE INPUTS
