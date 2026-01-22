@@ -63,7 +63,7 @@ unique_name_in_owner = true
 layout_mode = 2
 focus_mode = 0
 selected = 3
-item_count = 5
+item_count = 6
 popup/item_0/text = "512"
 popup/item_0/id = 0
 popup/item_1/text = "1024"
@@ -74,6 +74,8 @@ popup/item_3/text = "10240"
 popup/item_3/id = 3
 popup/item_4/text = "20480"
 popup/item_4/id = 4
+popup/item_5/text = "40960"
+popup/item_5/id = 5
 
 [node name="SimParameters" type="GridContainer" parent="."]
 offset_left = 846.0

@@ -1,17 +1,14 @@
 extends TextureRect
 
 # CONFIG
-var shader_local_size := 512
-var empty_img : Image
-@onready var image_size : int = %ComputeBoids.size.x:
-	set(v):
-		empty_img = Image.create(v, v, false, Image.FORMAT_RGBAF)
-		empty_img.fill(Color(0.1, 0.1, 0.1, 1.0))
-		image_size = v
+var compute_texture_size :int= 128
+var shader_local_size_x := 16
+var shader_local_size_y := 16
+@onready var image_size = compute_texture_size
 var zone_size_mult : int = 8
 
 # STARTUP
-var boids_count : int = 1024 * 5
+var boids_count : int = 1024 * 10
 var start_boids_count : int = boids_count
 
 # BOIDS PARAMETERS
@@ -38,25 +35,20 @@ const MIN_ZOOM := 0.1
 const MAX_ZOOM := 5.0
 
 # RENDERER SETUP
-#var rd := RenderingServer.create_local_rendering_device()
 var rdmain := RenderingServer.get_rendering_device()
 var textureRD: Texture2DRD
 var shader : RID
 var pipeline : RID
-var uniform_set : RID
-var output_tex : RID
 var fmt := RDTextureFormat.new()
 var view := RDTextureView.new()
-var buffers : Array[RID] = []
-var uniforms : Array[RDUniform] = []
-var output_tex_uniform : RDUniform
+var input_particles : RID
+var output_particles : RID
 
 func _ready():
 	randomize()
-	image_size = %ComputeBoids.size.x
-	
-	fmt.width = image_size
-	fmt.height = image_size
+
+	fmt.width = compute_texture_size
+	fmt.height = compute_texture_size
 	fmt.format = RenderingDevice.DATA_FORMAT_R32G32B32A32_SFLOAT
 	fmt.usage_bits = RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT \
 					| RenderingDevice.TEXTURE_USAGE_STORAGE_BIT \
@@ -74,9 +66,10 @@ func _exit_tree():
 	RenderingServer.call_on_render_thread(_free_compute_resources)
 
 func _free_compute_resources():
-	for i in range(buffers.size()):
-		if buffers[i]:
-			rdmain.free_rid(buffers[i])
+	if input_particles:
+		rdmain.free_rid(input_particles)
+	if output_particles:
+		rdmain.free_rid(output_particles)
 	if shader:
 		rdmain.free_rid(shader)
 	# TODO: consider other RIDs
@@ -89,72 +82,52 @@ func restart_simulation():
 	rebuild_buffers(start_data)
 
 func rebuild_buffers(data: Dictionary):
-	buffers.clear()
-	uniforms.clear()
+	var img_particles := Image.create(
+		compute_texture_size,
+		compute_texture_size,
+		false,
+		Image.FORMAT_RGBAF
+	)
 
-	# Convert Vector2 lists to PackedFloat32Array
-	var pos_pf := PackedFloat32Array()
-	for v in data["pos"]:
-		pos_pf.append(v.x)
-		pos_pf.append(v.y)
+	for i in boids_count:
+		var x :int= i % compute_texture_size
+		var y :int= i / compute_texture_size
+		img_particles.set_pixel(
+			x, y,
+			Color(data["pos"][i].x, data["pos"][i].y, data["vel"][i].x, data["vel"][i].y)
+		)
 
-	var vel_pf := PackedFloat32Array()
-	for v in data["vel"]:
-		vel_pf.append(v.x)
-		vel_pf.append(v.y)
+	var data_particles := img_particles.get_data()
+	input_particles = rdmain.texture_create(fmt, RDTextureView.new(), [data_particles])
+	output_particles = rdmain.texture_create(fmt, RDTextureView.new(), [data_particles])
 
-	var pos_bytes : PackedByteArray = pos_pf.to_byte_array()
-	var vel_bytes : PackedByteArray = vel_pf.to_byte_array()
-
-	# IN BUFFERS
-	buffers.append(rdmain.storage_buffer_create(pos_bytes.size(), pos_bytes))   # 0 in_pos_buffer
-	buffers.append(rdmain.storage_buffer_create(vel_bytes.size(), vel_bytes))   # 1 in_vel_buffer
-
-	# OUT BUFFERS (copy of input)
-	for b in [pos_bytes, vel_bytes]:
-		buffers.append(rdmain.storage_buffer_create(b.size(), b))  # 2 out_pos_buffer, 3 out_vel_buffer
-
-	# Output texture
-	var output_img := Image.create(image_size, image_size, false, Image.FORMAT_RGBAF)
-	#texture = ImageTexture.create_from_image(output_img)
-	output_tex = rdmain.texture_create(fmt, view, [output_img.get_data()])
-	textureRD.texture_rd_rid = output_tex
+	# Output texture TODO review this
+	textureRD.texture_rd_rid = output_particles
 	texture = textureRD # attach the output texture to the display node 
-
-	# UNIFORMS (storage buffers)
-	for i in range(buffers.size()):
-		var u := RDUniform.new()
-		u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-		u.binding = i
-		u.add_id(buffers[i])
-		uniforms.append(u)
-
-	# IMAGE TEXTURE OUTPUT (binding 4)
-	output_tex_uniform = RDUniform.new()
-	output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	output_tex_uniform.binding = 4
-	output_tex_uniform.add_id(output_tex)
-	uniforms.append(output_tex_uniform)
 
 	# SHADER + PIPELINE
 	var shader_file := load("res://compute_boids.glsl") as RDShaderFile
 	shader = rdmain.shader_create_from_spirv(shader_file.get_spirv())
 	pipeline = rdmain.compute_pipeline_create(shader)
-	uniform_set = rdmain.uniform_set_create(uniforms, shader, 0)
 
-func compute_stage(run_mode:int):
-	# default to 1D dispatch for boids
-	var global_size_x : int = int(float(boids_count) / shader_local_size) + 1
-	var global_size_y : int = 1
-
+func compute_stage(_run_mode:int,input_set,output_set):
+	var global_size_x : int
+	var global_size_y : int
+	
+	# Dispatch group size
+	global_size_x = int(ceil(float(compute_texture_size) / float(shader_local_size_x)))
+	global_size_y = int(ceil(float(compute_texture_size) / float(shader_local_size_y)))
+	
 	var compute_list := rdmain.compute_list_begin()
 	rdmain.compute_list_bind_compute_pipeline(compute_list, pipeline)
-	rdmain.compute_list_bind_uniform_set(compute_list, uniform_set, 0)
-
+	rdmain.compute_list_bind_uniform_set(compute_list, input_set, 0)
+	rdmain.compute_list_bind_uniform_set(compute_list, output_set, 1)
+	
 	# PUSH CONSTANT PARAMETERS
 	var params := PackedFloat32Array([
 		dt,
 		float(boids_count),
+		compute_texture_size,
 		vision_radius,
 		alignment_force,
 		cohesion_force,
@@ -165,75 +138,68 @@ func compute_stage(run_mode:int):
 		drag,
 		movement_randomness,
 		movement_scaling,
-		float(image_size),
+		float(image_size), # float(compute_texture_size), # TODO verify this
 		float(zone_size_mult),
-		draw_radius,
-		camera_center.x,
-		camera_center.y,
-		zoom,
-		float(run_mode),
 		0.0
 	])
 	var params_bytes := PackedByteArray()
 	params_bytes.append_array(params.to_byte_array())
-
 	rdmain.compute_list_set_push_constant(compute_list, params_bytes, params_bytes.size())
+
+	# finish list and proceed to compute
 	rdmain.compute_list_dispatch(compute_list, global_size_x, global_size_y, 1)
 	rdmain.compute_list_end()
-	#rdmain.submit()
-	#rdmain.sync()
 
 func _process(_delta):
 	RenderingServer.call_on_render_thread(run_simulation)
 
 func run_simulation():
-	# RUN COMPUTE STAGES: 0 = simulate, 1 = clear, 2 = draw
-	#for run_mode in [0, 1, 2]:
-		#compute_stage(run_mode)
-		
-	compute_stage(0)
+	# Flip buffers via uniformsets
+	var frame_flip = flip_buffers()
+	var input_set  = frame_flip[0]
+	var output_set = frame_flip[1]
 	
-	#compute_stage(1)
-	rdmain.texture_update(output_tex, 0, empty_img.get_data())
-	
-	compute_stage(2)
+	compute_stage(0,input_set,output_set)
 
-	# --- Swap results back into input buffers ---
-	swap_buffer_bindings()
+var ping : bool = false
+func flip_buffers():
+	# Flip buffers
+	ping = !ping
+	var read_main  : RID
+	var read_sec   : RID
+	var write_main : RID
+	var write_sec  : RID
+	if ping:
+		read_main  = output_particles
+		write_main = input_particles
+	else:
+		read_main  = input_particles
+		write_main = output_particles
 
-# FRAME BUFFER SWAP LOGIC
-var swap_flag : int = 0
-func swap_buffer_bindings():
-	if (dt == 0):
-		return
+	# use correct output image
+	if textureRD:
+		textureRD.texture_rd_rid = write_main
 	
-	swap_flag = 1 - swap_flag   # toggle between 0 and 1
-	var pos_in_index = swap_flag * 2       # 0 or 2
-	var vel_in_index = pos_in_index + 1    # 1 or 3
-	var pos_out_index = 2 - pos_in_index   # if 0to2, if 2to0
-	var vel_out_index = pos_out_index + 1  # 3 or 1
+	# Create uniform sets
+	var input_set  := _create_uniform_set(read_main,  read_sec,  0)
+	var output_set := _create_uniform_set(write_main, write_sec, 1)
 	
-	# rebuild uniforms for bindings 0 and 1
-	uniforms[0] = RDUniform.new()
-	uniforms[0].uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	uniforms[0].binding = 0
-	uniforms[0].add_id(buffers[pos_in_index])
-	uniforms[1] = RDUniform.new()
-	uniforms[1].uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	uniforms[1].binding = 1
-	uniforms[1].add_id(buffers[vel_in_index])
-	uniforms[2] = RDUniform.new()
-	uniforms[2].uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	uniforms[2].binding = 2
-	uniforms[2].add_id(buffers[pos_out_index])
-	uniforms[3] = RDUniform.new()
-	uniforms[3].uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	uniforms[3].binding = 3
-	uniforms[3].add_id(buffers[vel_out_index])
+	return [input_set,output_set]
+
+func _create_uniform_set(texture_rd: RID, texture_rd2: RID, _uniform_set: int) -> RID:
+	var uniform := RDUniform.new()
+	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	uniform.binding = 0
+	uniform.add_id(texture_rd)
 	
-	# rebuild uniform set
-	rdmain.free_rid(uniform_set)
-	uniform_set = rdmain.uniform_set_create(uniforms, shader, 0)
+	var uniform2 := RDUniform.new()
+	uniform2.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	uniform2.binding = 1
+	uniform2.add_id(texture_rd2)
+	
+	var new_set = [uniform, uniform2]
+	
+	return rdmain.uniform_set_create(new_set, shader, _uniform_set)
 
 # HANDLE MOUSE INPUTS
 var dragging := false
