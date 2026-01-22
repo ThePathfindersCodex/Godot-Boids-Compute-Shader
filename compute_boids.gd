@@ -6,7 +6,7 @@ var viewport_size :int= 800 # 944
 var shader_local_size_x := 16
 var shader_local_size_y := 16
 @onready var image_size = compute_texture_size
-var zone_size_mult : int = 8
+var zone_size_mult : int = 32
 
 # STARTUP
 var boids_count : int = 1024 * 10
