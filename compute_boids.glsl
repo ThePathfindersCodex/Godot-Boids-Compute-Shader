@@ -90,7 +90,7 @@ void run_sim() {
 		
 		// Map particle index to 2D texel coordinates
 		ivec2 other_uv = ivec2(i % int(params.compute_texture_size), i / params.compute_texture_size);
-		vec4 other_pixel = imageLoad(input_particles, uv);
+		vec4 other_pixel = imageLoad(input_particles, other_uv);
 		
 		// Get particle position
 		vec2 other_pos = other_pixel.rg;
@@ -150,7 +150,7 @@ void run_sim() {
     apply_border(pos, vel);
 
     // Write back
-	imageStore(input_particles, uv, vec4(pos, vel));
+	imageStore(output_particles, uv, vec4(pos, vel));
 }
 
 void main() {

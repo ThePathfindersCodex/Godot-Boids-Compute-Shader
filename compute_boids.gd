@@ -1,7 +1,8 @@
 extends TextureRect
 
 # CONFIG
-var compute_texture_size :int= 128
+var compute_texture_size :int= 256
+var viewport_size :int= 800 # 944
 var shader_local_size_x := 16
 var shader_local_size_y := 16
 @onready var image_size = compute_texture_size
@@ -43,6 +44,9 @@ var fmt := RDTextureFormat.new()
 var view := RDTextureView.new()
 var input_particles : RID
 var output_particles : RID
+var multimesh := MultiMesh.new()
+var quadmesh := QuadMesh.new()
+var render_material := ShaderMaterial.new()
 
 func _ready():
 	randomize()
@@ -91,6 +95,7 @@ func rebuild_buffers(data: Dictionary):
 
 	for i in boids_count:
 		var x :int= i % compute_texture_size
+		@warning_ignore("integer_division")
 		var y :int= i / compute_texture_size
 		img_particles.set_pixel(
 			x, y,
@@ -103,7 +108,33 @@ func rebuild_buffers(data: Dictionary):
 
 	# Output texture TODO review this
 	textureRD.texture_rd_rid = output_particles
-	texture = textureRD # attach the output texture to the display node 
+	#texture = textureRD # DEBUG attach the compute texture to the display node 
+
+	# multimesh/instance/mesh/material
+	#var mask :GradientTexture2D= preload("res://grad2d_softcircle_mask.tres")
+	var mask :Texture2D= preload("res://triangle.png")
+	render_material.shader = preload("res://particle_draw.gdshader")
+	render_material.set_shader_parameter("alpha_tex", mask)
+	render_material.set_shader_parameter("particle_buffer", textureRD)
+	render_material.set_shader_parameter("camera_center", camera_center)
+	render_material.set_shader_parameter("zoom", zoom)
+	render_material.set_shader_parameter("compute_texture_size", compute_texture_size)
+	render_material.set_shader_parameter("min_speed", min_speed)
+	render_material.set_shader_parameter("max_speed", max_speed)
+	render_material.set_shader_parameter("viewport_size", Vector2(viewport_size, viewport_size))
+	%MMI.material = render_material # 2D
+
+	quadmesh.size = Vector2.ONE
+	multimesh.instance_count = 0 # can only set other values when instance_count==0
+	multimesh.mesh = quadmesh
+	multimesh.transform_format = MultiMesh.TRANSFORM_2D
+	multimesh.use_colors = false
+	multimesh.use_custom_data = false
+	multimesh.instance_count = boids_count # actual point count
+	for i in range(boids_count):
+		multimesh.set_instance_transform_2d(i, Transform2D())
+
+	%MMI.multimesh = multimesh
 
 	# SHADER + PIPELINE
 	var shader_file := load("res://compute_boids.glsl") as RDShaderFile
@@ -159,7 +190,18 @@ func run_simulation():
 	var input_set  = frame_flip[0]
 	var output_set = frame_flip[1]
 	
+	# RUN SIM STEP
 	compute_stage(0,input_set,output_set)
+
+	# UPDATE MATERIAL BUFFERS
+	render_material.set_shader_parameter("particle_buffer", textureRD)
+	render_material.set_shader_parameter("camera_center", camera_center)
+	render_material.set_shader_parameter("zoom", zoom)
+	render_material.set_shader_parameter("min_speed", min_speed)
+	render_material.set_shader_parameter("max_speed", max_speed)
+
+	rdmain.free_rid(input_set)
+	rdmain.free_rid(output_set)
 
 var ping : bool = false
 func flip_buffers():
