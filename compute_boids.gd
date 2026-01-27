@@ -1,12 +1,12 @@
 extends TextureRect
 
 # CONFIG
-var compute_texture_size :int= 256
+var compute_texture_size :int= 256 # Holds up to 256*256 pixel particles
 var viewport_size :int= 800 # 944
 var shader_local_size_x := 16
 var shader_local_size_y := 16
 @onready var image_size = compute_texture_size
-var zone_size_mult : int = 32
+var zone_size_mult : int = 32 # wrap around border world size
 
 # STARTUP
 var boids_count : int = 1024 * 10
@@ -106,9 +106,8 @@ func rebuild_buffers(data: Dictionary):
 	input_particles = rdmain.texture_create(fmt, RDTextureView.new(), [data_particles])
 	output_particles = rdmain.texture_create(fmt, RDTextureView.new(), [data_particles])
 
-	# Output texture TODO review this
+	# Output texture
 	textureRD.texture_rd_rid = output_particles
-	#texture = textureRD # DEBUG attach the compute texture to the display node 
 
 	# multimesh/instance/mesh/material
 	#var mask :GradientTexture2D= preload("res://grad2d_softcircle_mask.tres")
@@ -169,7 +168,7 @@ func compute_stage(_run_mode:int,input_set,output_set):
 		drag,
 		movement_randomness,
 		movement_scaling,
-		float(image_size), # float(compute_texture_size), # TODO verify this
+		float(image_size),
 		float(zone_size_mult),
 		0.0
 	])

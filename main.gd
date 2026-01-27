@@ -69,3 +69,14 @@ func _on_button_pause_resume_pressed() -> void:
 
 func _on_option_start_point_count_item_selected(index: int) -> void:
 	%ComputeBoids.start_boids_count=int(%OptionStartPointCount.get_item_text(index))
+
+func _on_button_toggle_compute_texture_pressed() -> void:
+	if (%ComputeBoids.texture == null):
+		# show compute texture
+		%ComputeBoids.texture = %ComputeBoids.textureRD # DEBUG attach the compute texture to the display node 
+		%MMI.visible = false
+	else:
+		# default show final render
+		%ComputeBoids.texture = null
+		%MMI.visible = true
+	

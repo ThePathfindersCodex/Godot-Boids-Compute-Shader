@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://c135cwfxtnce3"]
+[gd_scene load_steps=7 format=3 uid="uid://c135cwfxtnce3"]
 
 [ext_resource type="Script" uid="uid://3yxwmdt1rglu" path="res://main.gd" id="1_h2yge"]
 [ext_resource type="Script" uid="uid://ddmcajs83p42r" path="res://LabelFPS.gd" id="1_ig7tw"]
@@ -10,6 +10,8 @@ expand_margin_left = 5.0
 expand_margin_top = 5.0
 expand_margin_right = 5.0
 expand_margin_bottom = 5.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_h2yge"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1bvp3"]
 bg_color = Color(0, 0, 0, 0.772549)
@@ -80,6 +82,17 @@ popup/item_4/text = "20480"
 popup/item_4/id = 4
 popup/item_5/text = "40960"
 popup/item_5/id = 5
+
+[node name="VSeparator2Expand" type="VSeparator" parent="SimControls/HBoxContainer"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_h2yge")
+
+[node name="ButtonToggleComputeTexture" type="Button" parent="SimControls/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Toggle Texture View"
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
 offset_left = 846.0
@@ -409,3 +422,4 @@ size_flags_horizontal = 3
 [connection signal="pressed" from="SimControls/HBoxContainer/ButtonPauseResume" to="." method="_on_button_pause_resume_pressed"]
 [connection signal="pressed" from="SimControls/HBoxContainer/ButtonRestart" to="." method="_on_button_restart_pressed"]
 [connection signal="item_selected" from="SimControls/HBoxContainer/OptionStartPointCount" to="." method="_on_option_start_point_count_item_selected"]
+[connection signal="pressed" from="SimControls/HBoxContainer/ButtonToggleComputeTexture" to="." method="_on_button_toggle_compute_texture_pressed"]
