@@ -241,25 +241,3 @@ func _create_uniform_set(texture_rd: RID, texture_rd2: RID, _uniform_set: int) -
 	var new_set = [uniform, uniform2]
 	
 	return rdmain.uniform_set_create(new_set, shader, _uniform_set)
-
-# HANDLE MOUSE INPUTS
-var dragging := false
-var last_mouse_pos := Vector2()
-func _gui_input(event):
-	if event is InputEventMouseButton:
-		# Handle zoom
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			zoom = clamp(zoom * 1.05, MIN_ZOOM, MAX_ZOOM)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			zoom = clamp(zoom / 1.05, MIN_ZOOM, MAX_ZOOM)
-
-		# Start/stop panning with right mouse button
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			dragging = event.pressed
-			last_mouse_pos = event.position
-
-	elif event is InputEventMouseMotion and dragging:
-		# Convert drag delta to world space based on zoom
-		var delta : Vector2 = (event.position - last_mouse_pos) / zoom
-		last_mouse_pos = event.position
-		camera_center -= delta

@@ -92,6 +92,7 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_h2yge")
 [node name="ButtonToggleComputeTexture" type="Button" parent="SimControls/HBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
+focus_mode = 0
 text = "Toggle Texture View"
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
@@ -136,6 +137,7 @@ horizontal_alignment = 2
 [node name="SliderSpeed" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 max_value = 0.5
 step = 0.01
 value = 0.25
@@ -164,6 +166,7 @@ horizontal_alignment = 2
 [node name="SliderVisionRadius" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 min_value = 5.0
 max_value = 500.0
 step = 5.0
@@ -184,6 +187,7 @@ horizontal_alignment = 2
 [node name="SliderAlignmentForce" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 max_value = 2.0
 step = 0.1
 value = 1.0
@@ -203,6 +207,7 @@ horizontal_alignment = 2
 [node name="SliderCohesionForce" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 max_value = 2.0
 step = 0.1
 value = 1.0
@@ -222,6 +227,7 @@ horizontal_alignment = 2
 [node name="SliderSeparationForce" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 max_value = 3.0
 step = 0.1
 value = 1.0
@@ -250,6 +256,7 @@ horizontal_alignment = 2
 [node name="SliderSteeringForce" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 min_value = 0.1
 max_value = 5.0
 step = 0.1
@@ -270,6 +277,7 @@ horizontal_alignment = 2
 [node name="SliderMinSpeed" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 max_value = 5.0
 step = 0.1
 value = 0.5
@@ -289,6 +297,7 @@ horizontal_alignment = 2
 [node name="SliderMaxSpeed" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 min_value = 2.0
 max_value = 20.0
 step = 0.1
@@ -309,6 +318,7 @@ horizontal_alignment = 2
 [node name="SliderDrag" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 min_value = 0.75
 max_value = 1.0
 step = 0.01
@@ -338,6 +348,7 @@ horizontal_alignment = 2
 [node name="SliderMovementRandomness" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 max_value = 1.0
 step = 0.1
 value = 0.2
@@ -357,6 +368,7 @@ horizontal_alignment = 2
 [node name="SliderMovementScaling" type="HSlider" parent="PanelContainer/SimParameters"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_force_pass_scroll_events = false
 min_value = 0.1
 max_value = 2.0
 step = 0.1
@@ -370,22 +382,6 @@ layout_mode = 2
 
 [node name="HSeparator12" type="HSeparator" parent="PanelContainer/SimParameters"]
 layout_mode = 2
-
-[node name="LabelDrawRadiusValue" type="Label" parent="PanelContainer/SimParameters"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-text = "0"
-horizontal_alignment = 2
-
-[node name="SliderDrawRadius" type="HSlider" parent="PanelContainer/SimParameters"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-min_value = 3.0
-max_value = 30.0
-value = 20.0
 
 [node name="LabelCamCenter" type="Label" parent="PanelContainer/SimParameters"]
 layout_mode = 2

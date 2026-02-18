@@ -11,8 +11,7 @@ var slider_bindings = {
 	"%SliderMaxSpeed": "max_speed",
 	"%SliderDrag": "drag",
 	"%SliderMovementRandomness": "movement_randomness",
-	"%SliderMovementScaling": "movement_scaling",
-	"%SliderDrawRadius": "draw_radius"
+	"%SliderMovementScaling": "movement_scaling"
 }
 
 func _ready():
@@ -40,7 +39,6 @@ func _process(_delta):
 	%LabelDragValue.text = str(snapped(%ComputeBoids.drag,.01))
 	%LabelSliderMovementRandomnessValue.text = str(snapped(%ComputeBoids.movement_randomness,.1))
 	%LabelSliderMovementScalingValue.text = str(snapped(%ComputeBoids.movement_scaling,.1))
-	%LabelDrawRadiusValue.text = str(snapped(%ComputeBoids.draw_radius,1))
 	
 	%LabelCamCenterValue.text = "("+str(snapped(%ComputeBoids.camera_center.x,.1))+ ", " + str(snapped(%ComputeBoids.camera_center.y,.1)) + ")"
 	%LabelZoomValue.text = str(snapped(%ComputeBoids.zoom,.01))
@@ -79,4 +77,28 @@ func _on_button_toggle_compute_texture_pressed() -> void:
 		# default show final render
 		%ComputeBoids.texture = null
 		%MMI.visible = true
-	
+
+# HANDLE MOUSE INPUTS
+var dragging := false
+var last_mouse_pos := Vector2()
+func _unhandled_input(event):
+	if (%ComputeBoids.texture != null):
+		return
+		
+	if event is InputEventMouseButton:
+		# Handle zoom
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			%ComputeBoids.zoom = clamp(%ComputeBoids.zoom * 1.05, %ComputeBoids.MIN_ZOOM, %ComputeBoids.MAX_ZOOM)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			%ComputeBoids.zoom = clamp(%ComputeBoids.zoom / 1.05, %ComputeBoids.MIN_ZOOM, %ComputeBoids.MAX_ZOOM)
+
+		# Start/stop panning with right mouse button
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			dragging = event.pressed
+			last_mouse_pos = event.position
+
+	elif event is InputEventMouseMotion and dragging:
+		# Convert drag delta to world space based on zoom
+		var delta : Vector2 = (event.position - last_mouse_pos) / %ComputeBoids.zoom
+		last_mouse_pos = event.position
+		%ComputeBoids.camera_center -= delta
