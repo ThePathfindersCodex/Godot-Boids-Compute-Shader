@@ -23,6 +23,7 @@ layout(push_constant, std430) uniform Params {
     float movement_scaling;
     float image_size;
 	float zone_size_mult;
+	float _pad;
 } params;
 
 // Utility
